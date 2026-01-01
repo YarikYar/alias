@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { getStartParam } from '../lib/telegram'
 
 interface HomeProps {
-  onCreateRoom: (category: string) => void
+  onCreateRoom: (category: string, numTeams: number) => void
 }
 
 const CATEGORIES = [
@@ -16,6 +16,7 @@ const CATEGORIES = [
 export default function Home({ onCreateRoom }: HomeProps) {
   const [debugInfo, setDebugInfo] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState<string>('general')
+  const [numTeams, setNumTeams] = useState<number>(2)
   const startParam = getStartParam()
 
   useEffect(() => {
@@ -61,8 +62,28 @@ export default function Home({ onCreateRoom }: HomeProps) {
           </div>
         </div>
 
+        {/* Number of teams selection */}
+        <div>
+          <p className="text-center text-tg-hint text-sm mb-3">Количество команд:</p>
+          <div className="flex gap-2 justify-center">
+            {[2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                onClick={() => setNumTeams(n)}
+                className={`w-12 h-12 rounded-xl font-bold text-lg transition-all ${
+                  numTeams === n
+                    ? 'bg-tg-button text-tg-buttonText shadow-lg scale-110'
+                    : 'bg-tg-secondary text-tg-text'
+                }`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button
-          onClick={() => onCreateRoom(selectedCategory)}
+          onClick={() => onCreateRoom(selectedCategory, numTeams)}
           className="w-full py-4 px-6 bg-tg-button text-tg-buttonText rounded-xl font-semibold text-lg shadow-lg active:scale-95 transition-transform"
         >
           Создать комнату

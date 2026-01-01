@@ -137,7 +137,7 @@ export function useWebSocket(roomId: string | null) {
         break
       }
       case 'score_update': {
-        const payload = message.payload as { team_scores: { A: number; B: number } }
+        const payload = message.payload as { team_scores: Record<string, number> }
         setTeamScores(payload.team_scores)
         break
       }

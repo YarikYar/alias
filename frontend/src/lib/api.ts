@@ -30,10 +30,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json()
 }
 
-export async function createRoom(category: string = 'general'): Promise<{ room: Room; player: Player }> {
+export async function createRoom(category: string = 'general', numTeams: number = 2): Promise<{ room: Room; player: Player }> {
   return request('/api/rooms', {
     method: 'POST',
-    body: JSON.stringify({ category }),
+    body: JSON.stringify({ category, num_teams: numTeams }),
   })
 }
 
@@ -45,7 +45,7 @@ export async function joinRoom(roomId: string): Promise<{ player: Player }> {
   return request(`/api/rooms/${roomId}/join`, { method: 'POST' })
 }
 
-export async function changeTeam(roomId: string, team: 'A' | 'B'): Promise<{ player: Player }> {
+export async function changeTeam(roomId: string, team: string): Promise<{ player: Player }> {
   return request(`/api/rooms/${roomId}/team`, {
     method: 'POST',
     body: JSON.stringify({ team }),

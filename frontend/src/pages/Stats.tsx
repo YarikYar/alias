@@ -13,7 +13,10 @@ export default function Stats() {
     }
   }, [room])
 
-  const winner = teamScores.A > teamScores.B ? 'A' : teamScores.B > teamScores.A ? 'B' : null
+  const teams = Object.entries(teamScores).sort((a, b) => b[1] - a[1])
+  const winner = teams.length > 0 && teams[0][1] > teams[1][1] ? teams[0][0] : null
+  const TEAM_COLORS = ['bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500']
+  const TEAM_TEXT_COLORS = ['text-blue-500', 'text-red-500', 'text-green-500', 'text-yellow-500', 'text-purple-500']
 
   const handleNewGame = () => {
     setScreen('home')
@@ -22,27 +25,25 @@ export default function Stats() {
   return (
     <div className="flex flex-col h-full safe-area-top safe-area-bottom">
       {/* Winner banner */}
-      <div className={`p-8 text-center ${winner === 'A' ? 'bg-team-a' : winner === 'B' ? 'bg-team-b' : 'bg-tg-secondary'}`}>
+      <div className={`p-8 text-center ${winner ? TEAM_COLORS[['A', 'B', 'C', 'D', 'E'].indexOf(winner)] : 'bg-tg-secondary'}`}>
         <h1 className="text-3xl font-bold text-white mb-2">
           {winner ? `Команда ${winner} победила!` : 'Ничья!'}
         </h1>
         <p className="text-white/80 text-xl">
-          {teamScores.A} : {teamScores.B}
+          {teams.map(([team, score]) => `${team}: ${score}`).join(' | ')}
         </p>
       </div>
 
       {/* Stats */}
       <div className="flex-1 overflow-y-auto p-4">
         {/* Team scores */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className={`p-4 rounded-xl text-center ${winner === 'A' ? 'bg-team-a/20 border-2 border-team-a' : 'bg-tg-secondary'}`}>
-            <div className="text-sm text-tg-hint mb-1">Команда A</div>
-            <div className="text-3xl font-bold text-team-a">{teamScores.A}</div>
-          </div>
-          <div className={`p-4 rounded-xl text-center ${winner === 'B' ? 'bg-team-b/20 border-2 border-team-b' : 'bg-tg-secondary'}`}>
-            <div className="text-sm text-tg-hint mb-1">Команда B</div>
-            <div className="text-3xl font-bold text-team-b">{teamScores.B}</div>
-          </div>
+        <div className={`grid gap-4 mb-6 ${teams.length <= 2 ? 'grid-cols-2' : teams.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {teams.map(([team, score], index) => (
+            <div key={team} className={`p-4 rounded-xl text-center ${winner === team ? `${TEAM_COLORS[index]}/20 border-2 ${TEAM_COLORS[index].replace('bg-', 'border-')}` : 'bg-tg-secondary'}`}>
+              <div className="text-sm text-tg-hint mb-1">Команда {team}</div>
+              <div className={`text-3xl font-bold ${TEAM_TEXT_COLORS[index]}`}>{score}</div>
+            </div>
+          ))}
         </div>
 
         {/* Player stats */}
@@ -58,7 +59,7 @@ export default function Stats() {
                     className="flex items-center justify-between p-3 bg-tg-secondary rounded-lg"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${player.team === 'A' ? 'bg-team-a' : 'bg-team-b'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${TEAM_COLORS[['A', 'B', 'C', 'D', 'E'].indexOf(player.team)]}`}>
                         {player.first_name?.[0] || '?'}
                       </div>
                       <div>

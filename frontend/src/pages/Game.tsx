@@ -42,7 +42,7 @@ export default function Game() {
 
       {/* Score */}
       <div className="px-4 pb-4">
-        <ScoreBoard teamA={teamScores.A} teamB={teamScores.B} />
+        <ScoreBoard teamScores={teamScores} />
       </div>
 
       {/* Timer */}

@@ -12,7 +12,7 @@ export interface Player {
   user_id: number
   username?: string
   first_name?: string
-  team?: 'A' | 'B'
+  team?: string
   score: number
   is_host: boolean
   joined_at: string
@@ -25,6 +25,7 @@ export interface Room {
   current_explainer_id?: number
   round_end_at?: string
   category: string
+  num_teams: number
   created_at: string
 }
 
@@ -38,7 +39,7 @@ export interface GameState {
   players: Player[]
   currentWord: Word | null
   secondsLeft: number
-  teamScores: { A: number; B: number }
+  teamScores: Record<string, number>
 }
 
 // WebSocket messages
@@ -72,7 +73,7 @@ export interface PlayerLeftPayload {
 
 export interface TeamChangedPayload {
   user_id: number
-  team: 'A' | 'B'
+  team: string
 }
 
 export interface GameStartedPayload {
@@ -97,18 +98,18 @@ export interface TimerPayload {
 
 export interface RoundEndPayload {
   round: number
-  team_scores: { A: number; B: number }
+  team_scores: Record<string, number>
   next_explainer: number
 }
 
 export interface GameEndPayload {
-  winner: 'A' | 'B'
-  team_scores: { A: number; B: number }
+  winner: string
+  team_scores: Record<string, number>
 }
 
 export interface GameStats {
   room_id: string
-  team_scores: { A: number; B: number }
+  team_scores: Record<string, number>
   players: PlayerStats[]
   rounds: RoundStats[]
 }
@@ -116,7 +117,7 @@ export interface GameStats {
 export interface PlayerStats {
   user_id: number
   first_name: string
-  team: 'A' | 'B'
+  team: string
   score: number
   words_guessed: number
   words_missed: number

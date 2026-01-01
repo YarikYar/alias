@@ -21,6 +21,7 @@ type Room struct {
 	CurrentExplainerID *int64     `json:"current_explainer_id,omitempty"`
 	RoundEndAt         *time.Time `json:"round_end_at,omitempty"`
 	Category           string     `json:"category"`
+	NumTeams           int        `json:"num_teams"`
 	CreatedAt          time.Time  `json:"created_at"`
 }
 
@@ -69,6 +70,7 @@ type RoomResponse struct {
 
 type CreateRoomRequest struct {
 	Category string `json:"category"`
+	NumTeams int    `json:"num_teams"`
 }
 
 type JoinRoomRequest struct{}

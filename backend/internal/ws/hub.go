@@ -272,11 +272,8 @@ func (rh *RoomHub) handleRoundEnd() {
 		msg, _ := json.Marshal(OutgoingMessage{
 			Type: MsgTypeGameEnd,
 			Payload: GameEndPayload{
-				Winner: winner,
-				TeamScores: map[string]int{
-					"A": gameState.TeamAScore,
-					"B": gameState.TeamBScore,
-				},
+				Winner:     winner,
+				TeamScores: gameState.TeamScores,
 			},
 		})
 		rh.broadcast <- msg
@@ -300,11 +297,8 @@ func (rh *RoomHub) handleRoundEnd() {
 		msg, _ := json.Marshal(OutgoingMessage{
 			Type: MsgTypeRoundEnd,
 			Payload: RoundEndPayload{
-				Round:      nextState.CurrentRound - 1,
-				TeamScores: map[string]int{
-					"A": nextState.TeamAScore,
-					"B": nextState.TeamBScore,
-				},
+				Round:         nextState.CurrentRound - 1,
+				TeamScores:    nextState.TeamScores,
 				NextExplainer: nextState.CurrentExplainer,
 			},
 		})
@@ -386,10 +380,7 @@ func (rh *RoomHub) sendGameStateToClient(client *Client) {
 	scoreMsg, _ := json.Marshal(OutgoingMessage{
 		Type: MsgTypeScoreUpdate,
 		Payload: ScoreUpdatePayload{
-			TeamScores: map[string]int{
-				"A": gameState.TeamAScore,
-				"B": gameState.TeamBScore,
-			},
+			TeamScores: gameState.TeamScores,
 		},
 	})
 	client.send <- scoreMsg

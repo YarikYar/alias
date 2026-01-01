@@ -38,11 +38,20 @@ func (h *RoomHandler) CreateRoom(c *fiber.Ctx) error {
 
 	var req models.CreateRoomRequest
 	if err := c.BodyParser(&req); err != nil {
-		// If no body, use default category
+		// If no body, use defaults
 		req.Category = "general"
+		req.NumTeams = 2
 	}
 
-	room, player, err := h.roomService.CreateRoom(c.Context(), user, req.Category)
+	// Set defaults if not specified
+	if req.Category == "" {
+		req.Category = "general"
+	}
+	if req.NumTeams == 0 {
+		req.NumTeams = 2
+	}
+
+	room, player, err := h.roomService.CreateRoom(c.Context(), user, req.Category, req.NumTeams)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

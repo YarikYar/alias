@@ -82,9 +82,9 @@ function App() {
     init()
   }, [setScreen, setUser, setRoom, setPlayers])
 
-  const handleCreateRoom = async (category: string = 'general') => {
+  const handleCreateRoom = async (category: string = 'general', numTeams: number = 2) => {
     try {
-      const { room, player } = await createRoom(category)
+      const { room, player } = await createRoom(category, numTeams)
       setRoom(room)
       setPlayers([player])
       // Save room ID for reconnection

@@ -85,19 +85,21 @@ export default function Lobby() {
 
       {/* Teams */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <TeamSelector
-            team="A"
-            players={players.filter(p => p.team === 'A')}
-            isSelected={myPlayer?.team === 'A'}
-            onSelect={() => handleTeamChange('A')}
-          />
-          <TeamSelector
-            team="B"
-            players={players.filter(p => p.team === 'B')}
-            isSelected={myPlayer?.team === 'B'}
-            onSelect={() => handleTeamChange('B')}
-          />
+        <div className={`grid gap-4 mb-6 ${room.num_teams <= 2 ? 'grid-cols-2' : room.num_teams === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {Array.from({ length: room.num_teams }, (_, i) => {
+            const teamNames = ['A', 'B', 'C', 'D', 'E']
+            const teamName = teamNames[i]
+            return (
+              <TeamSelector
+                key={teamName}
+                team={teamName}
+                teamIndex={i}
+                players={players.filter(p => p.team === teamName)}
+                isSelected={myPlayer?.team === teamName}
+                onSelect={() => handleTeamChange(teamName)}
+              />
+            )
+          })}
         </div>
 
         {/* Unassigned players */}

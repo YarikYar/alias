@@ -27,7 +27,7 @@ func NewRoomService(pool *pgxpool.Pool) *RoomService {
 	return &RoomService{pool: pool}
 }
 
-func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser, category string) (*models.Room, *models.Player, error) {
+func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser, category string, numTeams int) (*models.Room, *models.Player, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -39,6 +39,14 @@ func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser,
 		category = "general"
 	}
 
+	// Default num_teams if not specified or invalid
+	if numTeams < 2 {
+		numTeams = 2
+	}
+	if numTeams > 5 {
+		numTeams = 5
+	}
+
 	// Create room
 	room := models.Room{
 		CurrentRound:       0,
@@ -46,11 +54,12 @@ func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser,
 		CurrentExplainerID: nil,
 		RoundEndAt:         nil,
 		Category:           category,
+		NumTeams:           numTeams,
 	}
 	err = tx.QueryRow(ctx, `
-		INSERT INTO rooms (status, current_round, category) VALUES ($1, $2, $3)
+		INSERT INTO rooms (status, current_round, category, num_teams) VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at
-	`, models.RoomStatusLobby, 0, category).Scan(&room.ID, &room.CreatedAt)
+	`, models.RoomStatusLobby, 0, category, numTeams).Scan(&room.ID, &room.CreatedAt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,9 +93,9 @@ func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser,
 func (s *RoomService) GetRoom(ctx context.Context, roomID uuid.UUID) (*models.Room, error) {
 	room := &models.Room{}
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, status, current_round, category, created_at
+		SELECT id, status, current_round, category, num_teams, created_at
 		FROM rooms WHERE id = $1
-	`, roomID).Scan(&room.ID, &room.Status, &room.CurrentRound, &room.Category, &room.CreatedAt)
+	`, roomID).Scan(&room.ID, &room.Status, &room.CurrentRound, &room.Category, &room.NumTeams, &room.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRoomNotFound

@@ -17,16 +17,27 @@ const (
 	WinningScore     = 20
 )
 
+// GetTeamNames returns team names for given number of teams (A, B, C, D, E)
+func GetTeamNames(numTeams int) []string {
+	allTeams := []string{"A", "B", "C", "D", "E"}
+	if numTeams > len(allTeams) {
+		numTeams = len(allTeams)
+	}
+	if numTeams < 2 {
+		numTeams = 2
+	}
+	return allTeams[:numTeams]
+}
+
 type GameState struct {
-	RoomID           uuid.UUID `json:"room_id"`
-	Status           string    `json:"status"`
-	CurrentRound     int       `json:"current_round"`
-	CurrentExplainer int64     `json:"current_explainer"`
-	CurrentWord      *WordState `json:"current_word,omitempty"`
-	RoundEndAt       time.Time `json:"round_end_at"`
-	WordsThisRound   int       `json:"words_this_round"`
-	TeamAScore       int       `json:"team_a_score"`
-	TeamBScore       int       `json:"team_b_score"`
+	RoomID           uuid.UUID      `json:"room_id"`
+	Status           string         `json:"status"`
+	CurrentRound     int            `json:"current_round"`
+	CurrentExplainer int64          `json:"current_explainer"`
+	CurrentWord      *WordState     `json:"current_word,omitempty"`
+	RoundEndAt       time.Time      `json:"round_end_at"`
+	WordsThisRound   int            `json:"words_this_round"`
+	TeamScores       map[string]int `json:"team_scores"`
 }
 
 type WordState struct {
@@ -70,27 +81,39 @@ func (s *GameService) SaveGameState(ctx context.Context, state *GameState) error
 }
 
 func (s *GameService) StartGame(ctx context.Context, roomID uuid.UUID, players []*models.Player) (*GameState, error) {
-	// Find first explainer (first player from team A or first player)
+	// Get room to know num_teams
+	var numTeams int
+	err := s.pool.QueryRow(ctx, "SELECT num_teams FROM rooms WHERE id = $1", roomID).Scan(&numTeams)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize team scores
+	teamScores := make(map[string]int)
+	teamNames := GetTeamNames(numTeams)
+	for _, teamName := range teamNames {
+		teamScores[teamName] = 0
+	}
+
+	// Calculate initial scores from players
+	for _, p := range players {
+		if p.Team != "" {
+			if _, exists := teamScores[p.Team]; exists {
+				teamScores[p.Team] += p.Score
+			}
+		}
+	}
+
+	// Find first explainer (first player with a team or first player)
 	var firstExplainer int64
 	for _, p := range players {
-		if p.Team == "A" {
+		if p.Team != "" {
 			firstExplainer = p.UserID
 			break
 		}
 	}
 	if firstExplainer == 0 && len(players) > 0 {
 		firstExplainer = players[0].UserID
-	}
-
-	// Calculate initial scores
-	teamAScore := 0
-	teamBScore := 0
-	for _, p := range players {
-		if p.Team == "A" {
-			teamAScore += p.Score
-		} else if p.Team == "B" {
-			teamBScore += p.Score
-		}
 	}
 
 	state := &GameState{
@@ -100,8 +123,7 @@ func (s *GameService) StartGame(ctx context.Context, roomID uuid.UUID, players [
 		CurrentExplainer: firstExplainer,
 		RoundEndAt:       time.Now().Add(RoundDuration),
 		WordsThisRound:   0,
-		TeamAScore:       teamAScore,
-		TeamBScore:       teamBScore,
+		TeamScores:       teamScores,
 	}
 
 	if err := s.SaveGameState(ctx, state); err != nil {
@@ -183,11 +205,9 @@ func (s *GameService) ProcessSwipe(ctx context.Context, roomID uuid.UUID, userID
 		err = s.pool.QueryRow(ctx, `
 			SELECT team FROM players WHERE room_id = $1 AND user_id = $2
 		`, roomID, userID).Scan(&team)
-		if err == nil {
-			if team == "A" {
-				state.TeamAScore++
-			} else if team == "B" {
-				state.TeamBScore++
+		if err == nil && team != "" {
+			if _, exists := state.TeamScores[team]; exists {
+				state.TeamScores[team]++
 			}
 		}
 	}
@@ -280,22 +300,22 @@ func (s *GameService) CheckWinCondition(ctx context.Context, roomID uuid.UUID) (
 		return false, "", nil
 	}
 
-	if state.TeamAScore >= WinningScore {
-		return true, "A", nil
-	}
-	if state.TeamBScore >= WinningScore {
-		return true, "B", nil
+	// Check if any team reached winning score
+	for team, score := range state.TeamScores {
+		if score >= WinningScore {
+			return true, team, nil
+		}
 	}
 	return false, "", nil
 }
 
-func (s *GameService) GetTeamScores(ctx context.Context, roomID uuid.UUID) (int, int, error) {
+func (s *GameService) GetTeamScores(ctx context.Context, roomID uuid.UUID) (map[string]int, error) {
 	state, err := s.GetGameState(ctx, roomID)
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 	if state == nil {
-		return 0, 0, nil
+		return make(map[string]int), nil
 	}
-	return state.TeamAScore, state.TeamBScore, nil
+	return state.TeamScores, nil
 }

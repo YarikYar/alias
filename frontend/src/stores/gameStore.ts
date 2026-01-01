@@ -13,15 +13,15 @@ interface GameStore {
   setPlayers: (players: Player[]) => void
   addPlayer: (player: Player) => void
   removePlayer: (userId: number) => void
-  updatePlayerTeam: (userId: number, team: 'A' | 'B') => void
+  updatePlayerTeam: (userId: number, team: string) => void
 
   // Game state
   currentWord: Word | null
   secondsLeft: number
-  teamScores: { A: number; B: number }
+  teamScores: Record<string, number>
   setCurrentWord: (word: Word | null) => void
   setSecondsLeft: (seconds: number) => void
-  setTeamScores: (scores: { A: number; B: number }) => void
+  setTeamScores: (scores: Record<string, number>) => void
 
   // UI state
   screen: 'loading' | 'home' | 'lobby' | 'game' | 'stats'
@@ -35,7 +35,7 @@ interface GameStore {
   isHost: () => boolean
   isExplainer: () => boolean
   getMyPlayer: () => Player | undefined
-  getTeamPlayers: (team: 'A' | 'B') => Player[]
+  getTeamPlayers: (team: string) => Player[]
 
   // Reset
   reset: () => void
@@ -47,7 +47,7 @@ const initialState = {
   players: [],
   currentWord: null,
   secondsLeft: 60,
-  teamScores: { A: 0, B: 0 },
+  teamScores: {} as Record<string, number>,
   screen: 'loading' as const,
   sendSwipe: null,
 }

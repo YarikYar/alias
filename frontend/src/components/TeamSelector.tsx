@@ -1,16 +1,26 @@
 import type { Player } from '../types'
 
 interface TeamSelectorProps {
-  team: 'A' | 'B'
+  team: string
+  teamIndex: number
   players: Player[]
   isSelected: boolean
   onSelect: () => void
 }
 
-export default function TeamSelector({ team, players, isSelected, onSelect }: TeamSelectorProps) {
-  const bgColor = team === 'A' ? 'bg-team-a' : 'bg-team-b'
-  const borderColor = team === 'A' ? 'border-team-a' : 'border-team-b'
-  const textColor = team === 'A' ? 'text-team-a' : 'text-team-b'
+const TEAM_COLORS = [
+  { bg: 'bg-blue-500', border: 'border-blue-500', text: 'text-blue-500' },
+  { bg: 'bg-red-500', border: 'border-red-500', text: 'text-red-500' },
+  { bg: 'bg-green-500', border: 'border-green-500', text: 'text-green-500' },
+  { bg: 'bg-yellow-500', border: 'border-yellow-500', text: 'text-yellow-500' },
+  { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-500' },
+]
+
+export default function TeamSelector({ team, teamIndex, players, isSelected, onSelect }: TeamSelectorProps) {
+  const colors = TEAM_COLORS[teamIndex % TEAM_COLORS.length]
+  const bgColor = colors.bg
+  const borderColor = colors.border
+  const textColor = colors.text
 
   return (
     <button

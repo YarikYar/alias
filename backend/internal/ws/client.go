@@ -137,11 +137,11 @@ func (c *Client) handleSwipe(action string) {
 		c.hub.BroadcastToRoom(c.roomID, resultMsg)
 
 		// Get and broadcast team scores
-		scoreA, scoreB, _ := c.hub.gameService.GetTeamScores(ctx, c.roomID)
+		teamScores, _ := c.hub.gameService.GetTeamScores(ctx, c.roomID)
 		scoreMsg, _ := json.Marshal(OutgoingMessage{
 			Type: MsgTypeScoreUpdate,
 			Payload: ScoreUpdatePayload{
-				TeamScores: map[string]int{"A": scoreA, "B": scoreB},
+				TeamScores: teamScores,
 			},
 		})
 		c.hub.BroadcastToRoom(c.roomID, scoreMsg)
