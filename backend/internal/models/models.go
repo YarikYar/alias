@@ -22,6 +22,7 @@ type Room struct {
 	RoundEndAt         *time.Time `json:"round_end_at,omitempty"`
 	Category           string     `json:"category"`
 	NumTeams           int        `json:"num_teams"`
+	TeamNames          []string   `json:"team_names"`
 	CreatedAt          time.Time  `json:"created_at"`
 }
 

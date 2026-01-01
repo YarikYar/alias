@@ -81,16 +81,22 @@ func (s *GameService) SaveGameState(ctx context.Context, state *GameState) error
 }
 
 func (s *GameService) StartGame(ctx context.Context, roomID uuid.UUID, players []*models.Player) (*GameState, error) {
-	// Get room to know num_teams
-	var numTeams int
-	err := s.pool.QueryRow(ctx, "SELECT num_teams FROM rooms WHERE id = $1", roomID).Scan(&numTeams)
+	// Get room to know team_names
+	var teamNamesJSON []byte
+	err := s.pool.QueryRow(ctx, "SELECT team_names FROM rooms WHERE id = $1", roomID).Scan(&teamNamesJSON)
 	if err != nil {
 		return nil, err
 	}
 
+	var teamNames []string
+	if len(teamNamesJSON) > 0 {
+		if err := json.Unmarshal(teamNamesJSON, &teamNames); err != nil {
+			return nil, err
+		}
+	}
+
 	// Initialize team scores
 	teamScores := make(map[string]int)
-	teamNames := GetTeamNames(numTeams)
 	for _, teamName := range teamNames {
 		teamScores[teamName] = 0
 	}

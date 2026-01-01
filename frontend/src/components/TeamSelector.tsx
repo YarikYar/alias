@@ -33,7 +33,7 @@ export default function TeamSelector({ team, teamIndex, players, isSelected, onS
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className={`font-bold text-lg ${isSelected ? textColor : ''}`}>
-          Команда {team}
+          {team}
         </h3>
         <span className="text-sm text-tg-hint">{players.length}</span>
       </div>

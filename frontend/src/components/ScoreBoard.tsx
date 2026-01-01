@@ -13,7 +13,7 @@ export default function ScoreBoard({ teamScores }: ScoreBoardProps) {
         <div key={team} className="flex items-center gap-2">
           <div className="text-center">
             <div className={`text-sm font-medium ${TEAM_COLORS[index % TEAM_COLORS.length]} mb-1`}>
-              Команда {team}
+              {team}
             </div>
             <div className={`text-3xl font-bold ${TEAM_COLORS[index % TEAM_COLORS.length]}`}>
               {score}

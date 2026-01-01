@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -47,6 +49,13 @@ func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser,
 		numTeams = 5
 	}
 
+	// Generate team names
+	teamNames := GenerateUniqueTeamNames(numTeams)
+	teamNamesJSON, err := json.Marshal(teamNames)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Create room
 	room := models.Room{
 		CurrentRound:       0,
@@ -55,11 +64,12 @@ func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser,
 		RoundEndAt:         nil,
 		Category:           category,
 		NumTeams:           numTeams,
+		TeamNames:          teamNames,
 	}
 	err = tx.QueryRow(ctx, `
-		INSERT INTO rooms (status, current_round, category, num_teams) VALUES ($1, $2, $3, $4)
+		INSERT INTO rooms (status, current_round, category, num_teams, team_names) VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at
-	`, models.RoomStatusLobby, 0, category, numTeams).Scan(&room.ID, &room.CreatedAt)
+	`, models.RoomStatusLobby, 0, category, numTeams, teamNamesJSON).Scan(&room.ID, &room.CreatedAt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -92,16 +102,30 @@ func (s *RoomService) CreateRoom(ctx context.Context, user *models.TelegramUser,
 
 func (s *RoomService) GetRoom(ctx context.Context, roomID uuid.UUID) (*models.Room, error) {
 	room := &models.Room{}
+	var teamNamesJSON []byte
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, status, current_round, category, num_teams, created_at
+		SELECT id, status, current_round, category, num_teams, team_names, created_at
 		FROM rooms WHERE id = $1
-	`, roomID).Scan(&room.ID, &room.Status, &room.CurrentRound, &room.Category, &room.NumTeams, &room.CreatedAt)
+	`, roomID).Scan(&room.ID, &room.Status, &room.CurrentRound, &room.Category, &room.NumTeams, &teamNamesJSON, &room.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrRoomNotFound
 		}
 		return nil, err
 	}
+
+	if len(teamNamesJSON) > 0 {
+		log.Printf("GetRoom: raw team_names JSON: %s", string(teamNamesJSON))
+		if err := json.Unmarshal(teamNamesJSON, &room.TeamNames); err != nil {
+			log.Printf("GetRoom: unmarshal error: %v", err)
+			return nil, err
+		}
+		log.Printf("GetRoom: unmarshaled team_names: %v, length: %d", room.TeamNames, len(room.TeamNames))
+		for i, name := range room.TeamNames {
+			log.Printf("GetRoom: team[%d] = '%s'", i, name)
+		}
+	}
+
 	return room, nil
 }
 
@@ -179,25 +203,51 @@ func (s *RoomService) JoinRoom(ctx context.Context, roomID uuid.UUID, user *mode
 }
 
 func (s *RoomService) ChangeTeam(ctx context.Context, roomID uuid.UUID, userID int64, team string) (*models.Player, error) {
-	if team != "A" && team != "B" && team != "" {
-		return nil, errors.New("invalid team")
+	// Validate team name if not empty
+	if team != "" {
+		// Get room to check if team exists
+		room, err := s.GetRoom(ctx, roomID)
+		if err != nil {
+			log.Printf("ChangeTeam: GetRoom error: %v", err)
+			return nil, err
+		}
+
+		log.Printf("ChangeTeam: room.TeamNames=%v, requested team=%s", room.TeamNames, team)
+
+		// Check if team is in the room's team_names
+		validTeam := false
+		for _, teamName := range room.TeamNames {
+			if teamName == team {
+				validTeam = true
+				break
+			}
+		}
+
+		if !validTeam {
+			log.Printf("ChangeTeam: invalid team, available teams: %v", room.TeamNames)
+			return nil, errors.New("invalid team")
+		}
+		log.Printf("ChangeTeam: team validated successfully")
 	}
 
+	log.Printf("ChangeTeam: executing UPDATE for user=%d, team='%s'", userID, team)
 	var player models.Player
 	err := s.pool.QueryRow(ctx, `
 		UPDATE players SET team = $1
 		WHERE room_id = $2 AND user_id = $3
-		RETURNING id, room_id, user_id, username, first_name, team, score, is_host, joined_at
+		RETURNING id, room_id, user_id, COALESCE(username, ''), COALESCE(first_name, ''), team, score, is_host, joined_at
 	`, team, roomID, userID).Scan(
 		&player.ID, &player.RoomID, &player.UserID, &player.Username,
 		&player.FirstName, &player.Team, &player.Score, &player.IsHost, &player.JoinedAt,
 	)
 	if err != nil {
+		log.Printf("ChangeTeam: UPDATE/SCAN error: %v", err)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrPlayerNotFound
 		}
 		return nil, err
 	}
+	log.Printf("ChangeTeam: SUCCESS, player updated to team '%s'", player.Team)
 
 	return &player, nil
 }

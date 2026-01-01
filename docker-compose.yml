@@ -1,5 +1,10 @@
 version: '3.8'
 
+networks:
+  traefik_default:
+    external: true
+  default:
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -10,18 +15,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/migrations:/docker-entrypoint-initdb.d:ro
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elias}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -29,16 +31,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - APP_URL=${APP_URL}
+      - APP_URL=${APP_URL:-https://alias.zaruchevskiy.ru}
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER:-elias}
@@ -52,15 +53,52 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - traefik_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      # HTTP роутер (редирект на HTTPS)
+      - "traefik.http.routers.alias-backend-http.rule=Host(`alias.zaruchevskiy.ru`) && PathPrefix(`/api`, `/ws`)"
+      - "traefik.http.routers.alias-backend-http.entrypoints=web"
+      - "traefik.http.routers.alias-backend-http.middlewares=alias-redirect-to-https"
+      # HTTPS роутер
+      - "traefik.http.routers.alias-backend.rule=Host(`alias.zaruchevskiy.ru`) && PathPrefix(`/api`, `/ws`)"
+      - "traefik.http.routers.alias-backend.entrypoints=websecure"
+      - "traefik.http.routers.alias-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alias-backend.loadbalancer.server.port=8080"
+      # Middleware для редиректа
+      - "traefik.http.middlewares.alias-redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.alias-redirect-to-https.redirectscheme.permanent=true"
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:80"
+      args:
+        VITE_API_URL: https://alias.zaruchevskiy.ru
+        VITE_WS_URL: wss://alias.zaruchevskiy.ru
+        VITE_BOT_USERNAME: elias_local_bot
     depends_on:
       - backend
+    networks:
+      - default
+      - traefik_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_default"
+      # HTTP роутер (редирект на HTTPS)
+      - "traefik.http.routers.alias-frontend-http.rule=Host(`alias.zaruchevskiy.ru`)"
+      - "traefik.http.routers.alias-frontend-http.entrypoints=web"
+      - "traefik.http.routers.alias-frontend-http.middlewares=alias-redirect-to-https"
+      # HTTPS роутер
+      - "traefik.http.routers.alias-frontend.rule=Host(`alias.zaruchevskiy.ru`)"
+      - "traefik.http.routers.alias-frontend.entrypoints=websecure"
+      - "traefik.http.routers.alias-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alias-frontend.loadbalancer.server.port=80"
+    restart: unless-stopped
 
 volumes:
   postgres_data:

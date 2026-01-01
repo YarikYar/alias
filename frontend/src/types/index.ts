@@ -26,6 +26,7 @@ export interface Room {
   round_end_at?: string
   category: string
   num_teams: number
+  team_names: string[]
   created_at: string
 }
 
