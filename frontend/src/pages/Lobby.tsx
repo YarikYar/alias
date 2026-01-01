@@ -24,7 +24,7 @@ export default function Lobby() {
     return () => hideMainButton()
   }, [canStart, room])
 
-  const handleTeamChange = async (team: 'A' | 'B') => {
+  const handleTeamChange = async (team: string) => {
     if (!room) return
     try {
       await changeTeam(room.id, team)
