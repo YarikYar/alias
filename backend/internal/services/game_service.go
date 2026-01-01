@@ -131,7 +131,7 @@ func (s *GameService) StartGame(ctx context.Context, roomID uuid.UUID, players [
 	}
 
 	// Update room status in DB
-	_, err := s.pool.Exec(ctx, `
+	_, err = s.pool.Exec(ctx, `
 		UPDATE rooms
 		SET status = $1, current_round = $2, current_explainer_id = $3, round_end_at = $4
 		WHERE id = $5
