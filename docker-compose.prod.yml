@@ -1,0 +1,88 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-elias}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-elias_secret_password}
+      POSTGRES_DB: ${POSTGRES_DB:-elias}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elias}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - APP_URL=https://elias.zaruchevskiy.ru
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-elias}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-elias_secret_password}
+      - POSTGRES_DB=${POSTGRES_DB:-elias}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVER_PORT=8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.elias-api.rule=Host(`elias.zaruchevskiy.ru`) && (PathPrefix(`/api`) || PathPrefix(`/ws`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.elias-api.entrypoints=websecure"
+      - "traefik.http.routers.elias-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.elias-api.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik_default"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=https://elias.zaruchevskiy.ru
+        - VITE_WS_URL=wss://elias.zaruchevskiy.ru
+        - VITE_BOT_USERNAME=${BOT_USERNAME:-elias_local_bot}
+    depends_on:
+      - backend
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.elias-frontend.rule=Host(`elias.zaruchevskiy.ru`)"
+      - "traefik.http.routers.elias-frontend.entrypoints=websecure"
+      - "traefik.http.routers.elias-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.elias-frontend.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik_default"
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+  traefik_default:
+    external: true
